@@ -1,125 +1,182 @@
 <!DOCTYPE html>
 <html lang="he">
 <head>
-  <meta charset="UTF-8">
-  <title>לוח בקרה - InvoicesMat</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://fonts.googleapis.com/css2?family=Varela+Round&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dashboard אישי - InvoicesMat</title>
   <style>
     body {
       margin: 0;
-      font-family: 'Varela Round', sans-serif;
+      font-family: Arial, sans-serif;
       direction: rtl;
       display: flex;
       height: 100vh;
-      background-color: #f4f6f8;
+      background: #f4f6f8;
     }
-
-    /* Sidebar */
     .sidebar {
       width: 220px;
-      background: #ffffff;
-      box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+      background-color: #003366;
+      color: white;
       display: flex;
       flex-direction: column;
-      padding: 20px 10px;
+      padding: 20px;
+      box-sizing: border-box;
     }
-
     .sidebar h2 {
-      margin-bottom: 20px;
-      font-size: 20px;
-      text-align: center;
-      color: #00aaff;
+      margin-top: 0;
+      margin-bottom: 30px;
+      font-weight: normal;
     }
-
-    .nav-item {
-      padding: 12px 16px;
-      border-radius: 8px;
-      margin-bottom: 8px;
+    .sidebar button {
+      background: none;
+      border: none;
+      color: white;
+      padding: 12px 10px;
+      text-align: right;
       cursor: pointer;
-      transition: background-color 0.2s ease;
-      color: #333;
-    }
-
-    .nav-item:hover,
-    .nav-item.active {
-      background-color: #e6f7ff;
-    }
-
-    .nav-item:last-child {
-      margin-top: auto;
-      color: #888;
-    }
-
-    /* Main content */
-    .main-content {
-      flex-grow: 1;
-      padding: 40px;
-    }
-
-    .content-title {
-      font-size: 24px;
-      color: #333;
-      margin-bottom: 20px;
-    }
-
-    .content-body {
       font-size: 16px;
-      color: #555;
+      border-radius: 6px;
+      margin-bottom: 6px;
+      transition: background-color 0.3s;
+    }
+    .sidebar button:hover, .sidebar button.active {
+      background-color: #00509e;
+    }
+    .content {
+      flex-grow: 1;
+      padding: 30px;
+      box-sizing: border-box;
+      background: white;
+      margin: 20px;
+      border-radius: 12px;
+      overflow-y: auto;
+    }
+    h1 {
+      margin-top: 0;
+    }
+    #userName {
+      font-weight: bold;
+      margin-bottom: 40px;
+      font-size: 18px;
+      color: white;
+    }
+    .logout-btn {
+      margin-top: auto;
+      background-color: #c0392b;
+      padding: 10px;
+      border-radius: 6px;
+      font-weight: bold;
     }
   </style>
 </head>
 <body>
 
-  <div class="sidebar">
-    <h2>InvoicesMat</h2>
-    <div class="nav-item active" onclick="loadContent('new-invoice')">חשבונית חדשה</div>
-    <div class="nav-item" onclick="loadContent('invoices-list')">רשימת חשבוניות</div>
-    <div class="nav-item" onclick="loadContent('clients')">לקוחות</div>
-    <div class="nav-item" onclick="loadContent('reports')">דו"חות</div>
-    <div class="nav-item" onclick="loadContent('settings')">הגדרות</div>
+<div class="sidebar">
+  <h2>שלום, <span id="userName">...</span></h2>
+  <button data-section="newInvoice">חשבונית חדשה</button>
+  <button class="active" data-section="invoices">חשבוניות</button>
+  <button data-section="clients">לקוחות</button>
+  <button data-section="reports">דוחות</button>
+  <button data-section="settings">הגדרות</button>
+  <button class="logout-btn" id="logoutBtn">התנתק</button>
+</div>
+
+  <div class="content" id="contentArea">
+    <h1>חשבוניות</h1>
+    <p>כאן יוצגו החשבוניות שלך.</p>
   </div>
 
-  <div class="main-content" id="main-content">
-    <div class="content-title" id="content-title">חשבונית חדשה</div>
-    <div class="content-body" id="content-body">
-      כאן תוכל להפיק חשבונית חדשה ללקוח.
-    </div>
-  </div>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-  <script>
-    const navItems = document.querySelectorAll('.nav-item');
-    const title = document.getElementById('content-title');
-    const body = document.getElementById('content-body');
+    // קונפיגורציה שלך מ-Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyCILiXkIDP7wJdbZQ1TzWgkxMJaRspzDKs",
+      authDomain: "invoicesmat-5a336.firebaseapp.com",
+      projectId: "invoicesmat-5a336",
+      storageBucket: "invoicesmat-5a336.appspot.com",
+      messagingSenderId: "1036132938455",
+      appId: "1:1036132938455:web:YOUR_APP_ID_HERE"
+    };
 
-    function loadContent(section) {
-      navItems.forEach(item => item.classList.remove('active'));
-      event.target.classList.add('active');
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
 
+    const userNameSpan = document.getElementById("userName");
+    const contentArea = document.getElementById("contentArea");
+    const logoutBtn = document.getElementById("logoutBtn");
+    const sidebarButtons = document.querySelectorAll(".sidebar button[data-section]");
+
+    // בדיקה אם המשתמש מחובר
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        // קבלת מידע המשתמש מ-Firestore
+        const userDocRef = doc(db, "users", user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+
+        if (userDocSnap.exists()) {
+          const userData = userDocSnap.data();
+          userNameSpan.textContent = userData.fullName || "משתמש";
+        } else {
+          userNameSpan.textContent = "משתמש";
+          console.warn("משתמש לא נמצא במסד הנתונים");
+        }
+      } else {
+        // אם לא מחובר - נשלח לדף התחברות
+        window.location.href = "login.html";
+      }
+    });
+
+    // פונקציה להצגת תוכן לפי הקטגוריה שנבחרה
+    function showSection(section) {
+      // הסרת סלקטור פעיל מהכפתורים
+      sidebarButtons.forEach(btn => btn.classList.remove("active"));
+      // סימון הכפתור שנלחץ כפעיל
+      const btn = [...sidebarButtons].find(b => b.dataset.section === section);
+      if (btn) btn.classList.add("active");
+
+      // שינוי תוכן האזור המרכזי
       switch (section) {
-        case 'new-invoice':
-          title.textContent = "חשבונית חדשה";
-          body.textContent = "כאן תוכל להפיק חשבונית חדשה ללקוח.";
+        case "invoices":
+          contentArea.innerHTML = `<h1>חשבוניות</h1><p>כאן יוצגו החשבוניות שלך.</p>`;
           break;
-        case 'invoices-list':
-          title.textContent = "רשימת חשבוניות";
-          body.textContent = "כאן תוכל לצפות ולנהל את כל החשבוניות שהפקת.";
+        case "clients":
+          contentArea.innerHTML = `<h1>לקוחות</h1><p>כאן יוצגו הלקוחות שלך.</p>`;
           break;
-        case 'clients':
-          title.textContent = "לקוחות";
-          body.textContent = "כאן תוכל לנהל את רשימת הלקוחות שלך.";
+        case "reports":
+          contentArea.innerHTML = `<h1>דוחות</h1><p>כאן יוצגו הדוחות שלך.</p>`;
           break;
-        case 'reports':
-          title.textContent = "דו\"חות";
-          body.textContent = "כאן תוכל לצפות בגרפים ונתונים על הפעילות שלך.";
+        case "settings":
+          contentArea.innerHTML = `<h1>הגדרות</h1><p>כאן ניתן לשנות את ההגדרות שלך.</p>`;
           break;
-        case 'settings':
-          title.textContent = "הגדרות";
-          body.textContent = "כאן תוכל לערוך פרטים אישיים והגדרות מערכת.";
+        case "newInvoice":
+          contentArea.innerHTML = `<h1>חשבונית חדשה</h1><p>כאן ניתן ליצור חשבונית חדשה.</p>`;
           break;
+        default:
+          contentArea.innerHTML = `<h1>ברוכים הבאים</h1>`;
       }
     }
-  </script>
 
+    // מאזינים ללחיצות על תפריט הצד
+    sidebarButtons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        const section = btn.dataset.section;
+        showSection(section);
+      });
+    });
+
+    // התחלת עם תצוגת חשבוניות
+    showSection("invoices");
+
+    // כפתור התנתקות
+    logoutBtn.addEventListener("click", async () => {
+      await signOut(auth);
+      window.location.href = "login.html";
+    });
+
+  </script>
 </body>
 </html>
